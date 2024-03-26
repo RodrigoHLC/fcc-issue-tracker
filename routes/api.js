@@ -61,29 +61,44 @@ module.exports = function (app) {
     .get(function (req, res){
       let project = req.params.project;
       // let _id = req.query._id || /.+/; // THE REGEX DOESN'T WORK BECAUSE _id IS OF TYPE ObjectId, WHICH WORKS DIFFERENTLY FROM STRINGS.
+      let _id = req.query._id;
       let issue_title = req.query.issue_title || /.+/;
       let issue_text = req.query.issue_text || /.+/;
       let created_by = req.query.created_by || /.+/;
       let assigned_to = req.query.assigned_to || /.*/ ;
-      // let open = req.query.open || true || false;
-      let open = req.query.open;
+      let open = req.query.open ;
       // let created_on = req.query.created_on || /.+/;
       // let updated_on = req.query.updated_on || /.+/;
       let status_text = req.query.status_text || /.*/;
 
-      Issue.find({
-        // "_id": _id,
+      let queryObj = {
         "issue_title": issue_title,
         "issue_text": issue_text,
         "created_by": created_by,
         "assigned_to": assigned_to,
-        // "open": open || (true|false),
+        // "open": open,
         $or: [{"open": open}, {"open": {$exists:true} }],
-        // "created_on": created_on,
-        // "updated_on": updated_on,
         "status_text": status_text,
         "project_name": project
-      })
+      }
+      if(_id){
+        queryObj["_id"]=_id
+      }
+
+      Issue.find(
+        // // "_id": _id,
+        // "issue_title": issue_title,
+        // "issue_text": issue_text,
+        // "created_by": created_by,
+        // "assigned_to": assigned_to,
+        // // "open": open || (true|false),
+        // $or: [{"open": open}, {"open": {$exists:true} }],
+        // // "created_on": created_on,
+        // // "updated_on": updated_on,
+        // "status_text": status_text,
+        // "project_name": project
+        queryObj
+      )
       // .select({"__v": 0})
       .then(issueData=>{
         // console.log("Tuki");
@@ -143,7 +158,7 @@ module.exports = function (app) {
 
     })
     
-    .put(function (req, res){
+    .put(async function (req, res){
       let project = req.params.project;
       let _id = req.body._id;
       // IF _ID WAS NOT SENT:
@@ -151,6 +166,15 @@ module.exports = function (app) {
         res.send({error: 'missing _id'});
         return
       };
+      // IF _id WAS SENT, CHECK IF IT'S VALID
+      await Issue.findOne({"_id": _id})
+        .then(data=>{
+        })
+        .catch(err=>{
+          res.send({error: 'could not update', '_id': _id});
+          return
+        })
+
       // CREATE OBJECT WITH VALUES FROM INPUT FIELDS
       let obj = {
        "issue_title": req.body.issue_title,
@@ -170,37 +194,62 @@ module.exports = function (app) {
         // }
       }
       // let objKeys = Object.keys(obj);
-      // IF THERE'S SOMETHING TO CHANGE
-      Issue.findById({"_id": _id})
-      .then(data => {
-        // LOOP THROUGH ALL THE SUBMITTED FIELDS
-        for(let key in obj) {
-          // IF SUBMITTED FIELD IS DIFFERENT FROM ORIGINAL FIELD AND IT'S NOT AN EMPTY STRING
-          if(data[key] != obj[key] && obj[key] ){
-            // UPDATE ORIGINAL FIELD TO NEW FIELD
-            data[key] = obj[key]
-          }
+      // ↓ ↓ ↓ ↓ SECOND APPROACH ↓ ↓ ↓ ↓ 
+      let fields = {};
+      for (let key in obj){
+        if(obj[key]){
+          fields[key] = obj[key]
         }
-        // SET UPDATE DATE
-        // data.updated_on = new Date();
-        // data.updated_on = Date.now;
-        // SAVE UPDATED DATA IN MONGOOSE
-        data.save()
-        // IF SUCCESSFUL
-        .then(updatedData=>{
-          // done(null, updatedData); // IS THIS NECESSARY?
-          res.send({result: 'successfully updated', '_id': _id});
+      }
+
+      Issue.findOneAndUpdate({"_id": _id}, fields, {new: true})
+        .then(data => {
+          if(data){
+            res.send({result: 'successfully updated', '_id': _id})
+          }else{
+            res.send({error: 'could not update', '_id': _id})
+          }
         })
-        // IF UNSUCCESSFUL
         .catch(err=>{
           res.send({error: 'could not update', '_id': _id})
-          // ↑ ↑ EL PROBLEMA LLEGA HASTA ACÁ
         })
-      })
-      // IF MONGO FAILED TO FIND OBJECT BY ID
-      .catch(err=>{
-        res.send({error: 'could not update', '_id': _id})
-      })
+      // ↑ ↑ ↑ ↑ SECOND APPROACH ↑ ↑ ↑ ↑ 
+
+      // ↓ ↓ ↓ ↓ FIRST APPROACH ↓ ↓ ↓ ↓ 
+      // IF THERE'S SOMETHING TO CHANGE
+      // Issue.findById({"_id": _id})
+      // .then(data => {
+      //   // LOOP THROUGH ALL THE SUBMITTED FIELDS
+      //   for(let key in obj) {
+      //     // IF SUBMITTED FIELD IS DIFFERENT FROM ORIGINAL FIELD AND IT'S NOT AN EMPTY STRING
+      //     if(data[key] != obj[key] && obj[key] ){
+      //       // UPDATE ORIGINAL FIELD TO NEW FIELD
+      //       data[key] = obj[key]
+      //     }
+      //   }
+      //   // SET UPDATE DATE
+      //   // data.updated_on = new Date();
+      //   // data.updated_on = Date.now;
+      //   // SAVE UPDATED DATA IN MONGOOSE
+      //   data.save()
+      //   // IF SUCCESSFUL
+      //   .then(updatedData=>{
+      //     // done(null, updatedData); // IS THIS NECESSARY?
+      //     res.send({result: 'successfully updated', '_id': _id});
+      //   })
+      //   // IF UNSUCCESSFUL
+      //   .catch(err=>{
+      //     res.send({error: 'could not update', '_id': _id})
+      //     // ↑ ↑ EL PROBLEMA LLEGA HASTA ACÁ
+      //   })
+      // })
+      // // IF MONGO FAILED TO FIND OBJECT BY ID
+      // .catch(err=>{
+      //   res.send({error: 'could not update', '_id': _id})
+      // })
+    // ↑ ↑ ↑ ↑ FIRST APPROACH ↑ ↑ ↑ ↑ 
+
+
     }) 
       
     
