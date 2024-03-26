@@ -16,8 +16,16 @@ app.use('/public', express.static(process.cwd() + '/public'));
 
 app.use(cors({origin: '*'})); //For FCC testing purposes only
 
+
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+//Sample front-end
+app.route('/:project/')
+  .get(function (req, res) {
+    res.sendFile(process.cwd() + '/views/issue.html');
+  });
 
 //Index page (static HTML)
 app.route('/')
@@ -38,21 +46,19 @@ app.use(function(req, res, next) {
     .send('Not Found');
 });
 
-const port = process.env.PORT || 3000;
-
 //Start our server and tests!
-app.listen(port, function () {
-  console.log("Listening on port " + port);
+const listener = app.listen(process.env.PORT || 3000, function () {
+  console.log('Your app is listening on port ' + listener.address().port);
   if(process.env.NODE_ENV==='test') {
     console.log('Running Tests...');
     setTimeout(function () {
       try {
         runner.run();
       } catch(e) {
-          console.log('Tests are not valid:');
-          console.error(e);
+        console.log('Tests are not valid:');
+        console.error(e);
       }
-    }, 1500);
+    }, 3500);
   }
 });
 
